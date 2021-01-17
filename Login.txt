@@ -1,0 +1,190 @@
+package com.communication.majorproject;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.android.volley.AuthFailureError;
+import com.android.volley.NetworkResponse;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.HttpHeaderParser;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+public class Login extends AppCompatActivity {
+
+
+    Button logBtn;
+    EditText passwd;
+    EditText email_text;
+    String pass;
+    static String email;
+    boolean ad_flag = false;
+    boolean p_flag = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_login);
+
+
+        logBtn = findViewById(R.id.logButtn);
+        passwd = findViewById(R.id.password);
+        email_text = findViewById(R.id.login_email);
+
+        Volley.newRequestQueue(this);
+
+        logBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                email = email_text.getText().toString().trim();
+                pass = passwd.getText().toString().trim();
+
+                if (!(pass.length() < 1)) {
+                    try {
+                        RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
+                        String Url = getString(R.string.base_url)+"validate_user_post.php?";
+
+                        StringRequest stringRequest = new StringRequest(Request.Method.POST, Url, new Response.Listener<String>() {
+                            @Override
+                            public void onResponse(String response) {
+//                                Toast.makeText(getApplicationContext(), response, Toast.LENGTH_LONG).show();
+                                try {
+
+                                    DrawerActivity.log_flag = false;
+                                    JSONObject obj = new JSONObject(response);
+                                    String flag = obj.getString("flag");
+                                    String msg = obj.getString("msg");
+//                                    Toast.makeText(getApplicationContext(),flag, Toast.LENGTH_LONG).show();
+                                    Intent in;
+                                    if(flag.contains("INV_PARAM")){
+                                        Toast.makeText(getApplicationContext(),"OOps Something went wrong \n Please contact admin cell", Toast.LENGTH_LONG).show();
+                                    }
+
+                                    switch (flag)
+                                    {
+                                        case "ADMIN_SUCC": ad_flag = true; break;
+
+                                        case "USR_VALID_SUCC" : p_flag = true; break;
+
+                                        case "INV_PASS" : passwd.setError("Invalid Password"); break;
+
+                                        case "NO_SUCH_USR" : email_text.requestFocus(); email_text.setError("No such user exist"); break;
+                                    }
+
+                                    if(ad_flag==true)
+                                    {
+                                        in = new Intent(getApplicationContext(),DrawerActivity.class);
+                                        in.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        ad_flag = false;
+                                        startActivity(in);
+                                    }
+                                    else if(p_flag == true)
+                                    {
+                                        in = new Intent(getApplicationContext(),PatientActivity.class);
+                                        in.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        p_flag = false;
+                                        startActivity(in);
+                                    }
+
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+
+//                                Log.i("VOLLEY", response);
+                            }
+                        }, new Response.ErrorListener() {
+                            @Override
+                            public void onErrorResponse(VolleyError error) {
+                                Toast.makeText(getApplicationContext(),"ERR!!" + error.toString(),Toast.LENGTH_LONG).show();
+                                Log.e("VOLLEY", error.toString());
+                            }
+                        }) {
+
+                            @Override
+                            protected Map<String, String> getParams() {
+                                Map<String, String> params = new HashMap<String, String>();
+                                params.put("email", email);
+                                params.put("pass", pass);
+
+                                return params;
+                            }
+                        };
+                        requestQueue.add(stringRequest);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+//
+
+//                    Intent in = new Intent(getApplicationContext(),DrawerActivity.class);
+//                    in.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+//                    startActivity(in);
+                } else {
+                    passwd.setError("Enter correct password");
+                }
+            }
+        });
+
+
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        Intent home = new Intent(Login.this, MainActivity.class);
+        home.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(home);
+    }
+
+    public void checkPermission(String permission, int requestCode)
+    {
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), permission) == PackageManager.PERMISSION_DENIED) {
+
+            // Requesting the permission
+            ActivityCompat.requestPermissions(Login.this,
+                    new String[] { permission },
+                    requestCode);
+        }
+        else {
+            Toast.makeText(Login.this,
+                    "Permission already granted",
+                    Toast.LENGTH_SHORT)
+                    .show();
+        }
+    }
+
+}

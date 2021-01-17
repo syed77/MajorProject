@@ -1,0 +1,130 @@
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.http import JsonResponse
+from django.conf import settings
+
+
+import numpy as np
+import pandas as pd
+import django
+from django.core.mail import send_mail
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+import smtplib
+
+
+
+def classify(request):
+
+    if(request.method=='GET'):
+     val1 = str(request.GET["pid"])
+     val2 = " "
+     val3 = float(request.GET["rm"])
+     val4 = float(request.GET["tm"])
+     val5 = float(request.GET["pm"])
+     val6 = float(request.GET["am"])
+     val7 = float(request.GET["sm"])
+     val8 = float(request.GET["cm"])
+     val9 = float(request.GET["com"])
+     val10 = float(request.GET["cpm"])
+     val11 = float(request.GET["sym"])
+     val12 = float(request.GET["fm"])
+     val13 = float(request.GET["rs"])
+     val14 = float(request.GET["ts"])
+     val15 = float(request.GET["ps"])
+     val16 = float(request.GET["as"])
+     val17 = float(request.GET["ss"])
+     val18 = float(request.GET["cs"])
+     val19 = float(request.GET["cos"])
+     val20 = float(request.GET["cps"])
+     val21 = float(request.GET["sys"])
+     val22 = float(request.GET["fs"])
+     val23 = float(request.GET["rw"])
+     val24 = float(request.GET["tw"])
+     val25 = float(request.GET["pw"])
+     val26 = float(request.GET["aw"])
+     val27 = float(request.GET["sw"])
+     val28 = float(request.GET["cw"])
+     val29 = float(request.GET["cow"])
+     val30 = float(request.GET["cpw"])
+     val31 = float(request.GET["syw"])
+     val32 = float(request.GET["fw"])
+
+
+     df = pd.read_csv(r'/home/ubuntu/project/mlapi/Classifier/Cancer.csv',index_col=False)
+
+     data = df.append({'id': val1, 'diagnosis': val2, 'radius_mean': val3, 'texture_mean': val4, 'perimeter_mean': val5,
+                       'area_mean': val6, 'smoothness_mean': val7, 'compactness_mean': val8, 'concavity_mean': val9,
+                       'concave points_mean': val10, 'symmetry_mean': val11, 'fractal_dimension_mean': val12,
+                       'radius_se': val13, 'texture_se': val14, 'perimeter_se': val15, 'area_se': val16,
+                       'smoothness_se': val17, 'compactness_se': val18, 'concavity_se': val19,
+                       'concave points_se': val20, 'symmetry_se': val21, 'fractal_dimension_se': val22,
+                       'radius_worst': val23, 'texture_worst': val24, 'perimeter_worst': val25, 'area_worst': val26,
+                       'smoothness_worst': val27, 'compactness_worst': val28, 'concavity_worst': val29,
+                       'concave points_worst': val30, 'symmetry_worst': val31, 'fractal_dimension_worst': val32},
+                      ignore_index=True)
+    
+     data['diagnosis'] = data['diagnosis'].apply(lambda x: '1' if x == 'M' else '0')
+     data = data.set_index('id')
+    
+     y = data['diagnosis'].values
+     X = data.drop('diagnosis', axis=1).values
+    
+     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0,shuffle=False,stratify=None)
+    #  print(X_test[113])
+     models_list = []
+     models_list.append(('\nKNN', KNeighborsClassifier()))
+     
+     num_folds = 10
+     results = []
+     names = []
+    
+     for name, model in models_list:
+         kfold = KFold(n_splits=num_folds, random_state=0)
+         cv_results = cross_val_score(model, X_train, y_train,
+                                      cv=kfold, scoring='accuracy')
+         results.append(cv_results)
+         names.append(name)
+    
+     pipelines = []
+     pipelines.append(('ScaledKNN', Pipeline([('Scaler', StandardScaler()), ('KNN', KNeighborsClassifier())])))
+     results = []
+     names = []
+     kfold = KFold(n_splits=num_folds, random_state=0)
+
+
+     
+     for name, model in pipelines:
+         cv_results = cross_val_score(model, X_train, y_train, cv=kfold, scoring='accuracy')
+         results.append(cv_results)
+         names.append(name)
+    
+     model.fit(X_train, y_train)
+
+     scaler = StandardScaler().fit(X_train)
+     X_test_scaled = scaler.transform(X_test)
+     predict = model.predict(X_test_scaled)
+    
+    
+     data_m={"data":"Malignant"}
+     data_b = {"data": "Benign"}
+    
+
+     if (str(predict[113]) == '1'):
+        send_mail('Report Result of patient '+val1 ,'Patient with id '+val1+' is suffering with malignant.\nThe patient may require immediate diagnosis. Schedule his appoint at the earliest \n This is a automated response and do not reply. ',settings.EMAIL_HOST_USER,['syedmhd77@gmail.com'],fail_silently=False)
+       
+        return JsonResponse(data_m, safe=False)
+
+     elif(str(predict[113]) == '0'):
+        send_mail('Report Result of patient '+ val1 ,'Patient with id '+val1+' is suffering with benign. \n This is a automated response and do not reply. ',settings.EMAIL_HOST_USER,['syedmhd77@gmail.com'],fail_silently=False)
+
+        return JsonResponse(data_b, safe=False)
+        
+
+
